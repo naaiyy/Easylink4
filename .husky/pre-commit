@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Run our prevent-test-branch-commits hook
+. "$(dirname -- "$0")/prevent-test-branch-commits"
+
+pnpm lint-staged && pnpm type-check

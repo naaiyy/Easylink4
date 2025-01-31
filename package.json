@@ -1,0 +1,71 @@
+{
+  "name": "easylink",
+  "version": "1.0.4",
+  "description": "A revolutionary job platform reimagining how students and employers connect in France",
+  "type": "module",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "prepare": "husky",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "type-check": "pnpm --parallel --filter \"@easylink/*\" type-check",
+    "build": "pnpm --filter \"@easylink/*\" build",
+    "clean": "pnpm --parallel --filter \"@easylink/*\" clean",
+    "dev": "pnpm --parallel --filter \"@easylink/*\" dev",
+    "test": "pnpm --parallel --filter \"@easylink/*\" test",
+    "frontend:dev": "pnpm --filter \"@easylink/frontend\" dev",
+    "backend:dev": "pnpm --filter \"@easylink/backend\" start:dev",
+    "ui:dev": "pnpm --filter \"@easylink/ui\" dev",
+    "shared:dev": "pnpm --filter \"@easylink/shared\" dev"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "keywords": [
+    "job-platform",
+    "student-employment",
+    "work-study",
+    "alternance",
+    "france",
+    "recruitment",
+    "professional-networking",
+    "hr-suite"
+  ],
+  "author": "naaiyy",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/naaiyy/Easylink3.git"
+  },
+  "bugs": {
+    "url": "https://github.com/naaiyy/Easylink3/issues"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^18.4.3",
+    "@commitlint/config-conventional": "^18.4.3",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.1.2",
+    "husky": "^9.0.6",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.1.1",
+    "typescript": "^5.3.3"
+  }
+}

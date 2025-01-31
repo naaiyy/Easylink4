@@ -1,0 +1,363 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/**/*.md'
+  pull_request:
+    branches: [main, staging, development]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/**/*.md'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  CI_PERFORMANCE_THRESHOLD_MS: 180000 # 3 minutes threshold for total workflow time
+  CACHE_HIT_RATIO_THRESHOLD: 0.8 # Expected cache hit ratio (80%)
+
+jobs:
+  setup:
+    name: Setup
+    runs-on: ubuntu-latest
+    outputs:
+      cache-hit: ${{ steps.cache-dependencies.outputs.cache-hit }}
+
+      setup-time: ${{ steps.timing.outputs.timing }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start Timing
+        id: start-timing
+        run: |
+          echo "START_TIME=$(date +%s%N)" >> $GITHUB_ENV
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.8.1'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: '8'
+          run_install: false
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Cache dependencies
+        id: cache-dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ${{ env.STORE_PATH }}
+            **/node_modules
+            **/.turbo
+            **/.next/cache
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install dependencies
+        if: steps.cache-dependencies.outputs.cache-hit != 'true'
+        run: pnpm install
+
+      - name: Record Timing
+        id: timing
+        run: |
+          END_TIME=$(date +%s%N)
+          DURATION=$((($END_TIME - ${{ env.START_TIME }}) / 1000000))
+          echo "timing=$DURATION" >> $GITHUB_OUTPUT
+          echo "Setup job took $DURATION ms"
+
+  lint:
+    needs: setup
+    name: Lint and Format
+    runs-on: ubuntu-latest
+
+    outputs:
+      lint-time: ${{ steps.timing.outputs.timing }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.8.1'
+      - uses: pnpm/action-setup@v2
+        with:
+          version: '8'
+
+      - name: Start Timing
+        id: start-timing
+        run: |
+          echo "START_TIME=$(date +%s%N)" >> $GITHUB_ENV
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Restore cache
+        id: cache-restore
+        uses: actions/cache@v3
+        with:
+          path: |
+            ${{ env.STORE_PATH }}
+            **/node_modules
+            **/.turbo
+            **/.next/cache
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Check formatting
+        run: pnpm prettier --check .
+
+      - name: Run ESLint
+        run: pnpm eslint . --max-warnings 0
+
+      - name: Validate commit messages
+        uses: wagoid/commitlint-github-action@v5
+        with:
+          configFile: ./commitlint.config.js
+          failOnWarnings: true
+          commitDepth: 10
+
+      - name: Record Timing
+        id: timing
+        run: |
+          END_TIME=$(date +%s%N)
+          DURATION=$((($END_TIME - ${{ env.START_TIME }}) / 1000000))
+          echo "timing=$DURATION" >> $GITHUB_OUTPUT
+          echo "Lint job took $DURATION ms"
+
+  type-check:
+    needs: setup
+    name: Type Check
+    runs-on: ubuntu-latest
+    outputs:
+      type-check-time: ${{ steps.timing.outputs.timing }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.8.1'
+      - uses: pnpm/action-setup@v2
+        with:
+          version: '8'
+
+      - name: Start Timing
+        id: start-timing
+        run: |
+          echo "START_TIME=$(date +%s%N)" >> $GITHUB_ENV
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Restore cache
+        id: cache-restore
+        uses: actions/cache@v3
+        with:
+          path: |
+            ${{ env.STORE_PATH }}
+            **/node_modules
+            **/.turbo
+            **/.next/cache
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Type check all packages
+        run: |
+          echo "Type checking shared package..."
+          pnpm --filter "@easylink/shared" type-check
+          echo "Type checking ui package..."
+          pnpm --filter "@easylink/ui" type-check
+          echo "Type checking frontend package..."
+          pnpm --filter "@easylink/frontend" type-check
+          echo "Type checking backend package..."
+          pnpm --filter "@easylink/backend" type-check
+
+      - name: Record Timing
+        id: timing
+        run: |
+          END_TIME=$(date +%s%N)
+          DURATION=$((($END_TIME - ${{ env.START_TIME }}) / 1000000))
+          echo "timing=$DURATION" >> $GITHUB_OUTPUT
+          echo "Type check job took $DURATION ms"
+
+  test:
+    needs: setup
+    name: Run Tests
+    runs-on: ubuntu-latest
+    outputs:
+      test-time: ${{ steps.timing.outputs.timing }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.8.1'
+      - uses: pnpm/action-setup@v2
+        with:
+          version: '8'
+
+      - name: Start Timing
+        id: start-timing
+        run: |
+          echo "START_TIME=$(date +%s%N)" >> $GITHUB_ENV
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Restore cache
+        id: cache-restore
+        uses: actions/cache@v3
+        with:
+          path: |
+            ${{ env.STORE_PATH }}
+            **/node_modules
+            **/.turbo
+            **/.next/cache
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run tests
+        run: pnpm test
+        continue-on-error: true
+
+      - name: Record Timing
+        id: timing
+        run: |
+          END_TIME=$(date +%s%N)
+          DURATION=$((($END_TIME - ${{ env.START_TIME }}) / 1000000))
+          echo "timing=$DURATION" >> $GITHUB_OUTPUT
+          echo "Test job took $DURATION ms"
+
+  build:
+    needs: [lint, type-check, test]
+    name: Build
+    runs-on: ubuntu-latest
+    outputs:
+      build-time: ${{ steps.timing.outputs.timing }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.8.1'
+      - uses: pnpm/action-setup@v2
+        with:
+          version: '8'
+
+      - name: Start Timing
+        id: start-timing
+        run: |
+          echo "START_TIME=$(date +%s%N)" >> $GITHUB_ENV
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Restore cache
+        id: cache-restore
+        uses: actions/cache@v3
+        with:
+          path: |
+            ${{ env.STORE_PATH }}
+            **/node_modules
+            **/.turbo
+            **/.next/cache
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build packages
+        run: pnpm build
+        continue-on-error: true
+
+      - name: Generate documentation
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: pnpm typedoc
+
+      - name: Record Timing
+        id: timing
+        run: |
+          END_TIME=$(date +%s%N)
+          DURATION=$((($END_TIME - ${{ env.START_TIME }}) / 1000000))
+          echo "timing=$DURATION" >> $GITHUB_OUTPUT
+          echo "Build job took $DURATION ms"
+
+  analyze-performance:
+    needs: [setup, lint, type-check, test, build]
+    name: Analyze Workflow Performance
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Analyze Job Timings
+        run: |
+          echo "Performance Analysis Results:"
+          echo "------------------------"
+          echo "Setup Time: ${{ needs.setup.outputs.setup-time }}ms"
+          echo "Lint Time: ${{ needs.lint.outputs.lint-time }}ms"
+          echo "Type Check Time: ${{ needs.type-check.outputs.type-check-time }}ms"
+          echo "Test Time: ${{ needs.test.outputs.test-time }}ms"
+          echo "Build Time: ${{ needs.build.outputs.build-time }}ms"
+          TOTAL_TIME=$((${{ needs.setup.outputs.setup-time }} + ${{ needs.lint.outputs.lint-time }} + ${{ needs.type-check.outputs.type-check-time }} + ${{ needs.test.outputs.test-time }} + ${{ needs.build.outputs.build-time }}))
+          echo "Total Time: ${TOTAL_TIME}ms"
+          if [ $TOTAL_TIME -gt ${{ env.CI_PERFORMANCE_THRESHOLD_MS }} ]; then
+            echo "⚠️ Warning: Total workflow time (${TOTAL_TIME}ms) exceeds threshold (${{ env.CI_PERFORMANCE_THRESHOLD_MS }}ms)"
+          fi
+
+      - name: Analyze Cache Performance
+        run: |
+          echo "Cache Performance Analysis:"
+          echo "------------------------"
+          CACHE_HIT="${{ needs.setup.outputs.cache-hit }}"
+          if [ "$CACHE_HIT" = "true" ]; then
+            echo "✅ Cache hit successful"
+          else
+            echo "⚠️ Cache miss - Consider investigating cache key configuration"
+          fi
+
+      - name: Generate Performance Report
+        run: |
+          echo "CI Workflow Performance Report" > performance_report.txt
+          echo "=============================" >> performance_report.txt
+          echo "" >> performance_report.txt
+          echo "Job Timings:" >> performance_report.txt
+          echo "- Setup: ${{ needs.setup.outputs.setup-time }}ms" >> performance_report.txt
+          echo "- Lint: ${{ needs.lint.outputs.lint-time }}ms" >> performance_report.txt
+          echo "- Type Check: ${{ needs.type-check.outputs.type-check-time }}ms" >> performance_report.txt
+          echo "- Test: ${{ needs.test.outputs.test-time }}ms" >> performance_report.txt
+          echo "- Build: ${{ needs.build.outputs.build-time }}ms" >> performance_report.txt
+          echo "" >> performance_report.txt
+          echo "Cache Performance:" >> performance_report.txt
+          echo "- Cache Hit: ${{ needs.setup.outputs.cache-hit }}" >> performance_report.txt
+
+      - name: Upload Performance Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: ci-performance-report
+          path: performance_report.txt

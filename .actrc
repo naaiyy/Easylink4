@@ -1,0 +1,4 @@
+--container-architecture linux/amd64
+--reuse
+--bind
+-P ubuntu-latest=act-node:slim

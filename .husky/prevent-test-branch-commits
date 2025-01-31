@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+
+current_branch=$(git symbolic-ref HEAD | sed -e 's,.*/\(.*\),\1,')
+
+if [ "$current_branch" = "test/act-workflow" ]; then
+    echo "❌ ERROR: Commits are disabled on test/act-workflow branch"
+    echo "⚠️  This branch is for temporary testing only."
+    echo "💡 If you really need to commit, use --no-verify flag"
+    exit 1
+fi

@@ -1,0 +1,12 @@
+packages:
+  # Core packages
+  - 'packages/frontend'
+  - 'packages/backend'
+  - 'packages/shared'
+  - 'packages/ui'
+  # Optional packages
+  - 'packages/admin-portal'
+  - 'packages/landing-page'
+  # Infrastructure
+  - 'packages/services'
+  - 'packages/microservices'
