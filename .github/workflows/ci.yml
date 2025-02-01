@@ -57,7 +57,7 @@ jobs:
 
       - name: Cache dependencies
         id: cache-dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ${{ env.STORE_PATH }}
@@ -109,7 +109,7 @@ jobs:
 
       - name: Restore cache
         id: cache-restore
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ${{ env.STORE_PATH }}
@@ -170,7 +170,7 @@ jobs:
 
       - name: Restore cache
         id: cache-restore
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ${{ env.STORE_PATH }}
@@ -229,7 +229,7 @@ jobs:
 
       - name: Restore cache
         id: cache-restore
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ${{ env.STORE_PATH }}
@@ -281,7 +281,7 @@ jobs:
 
       - name: Restore cache
         id: cache-restore
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ${{ env.STORE_PATH }}
@@ -353,7 +353,7 @@ jobs:
           echo "- Cache Hit: ${{ needs.setup.outputs.cache-hit }}" >> performance_report.txt
 
       - name: Upload Performance Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ci-performance-report
           path: performance_report.txt
